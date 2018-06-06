@@ -1,6 +1,5 @@
 import ast
 
-
 class CodeSnippet:
     def __init__(self, file_path):
         source = open(file_path).read()
@@ -9,6 +8,13 @@ class CodeSnippet:
         self.T = term_nodes(self.tree)
         self.X = values(self.tree)
         self.s = self.tree
+    def tpairs(self):
+        result = []
+        for i in range(len(self.T)):
+            for j in range(len(self.T)):
+                if i > j:
+                    result.append((self.T[i], self.T[j]))
+        return result
 
 class TreeNode:
     def __init__(self, node, parent=None):
@@ -17,9 +23,11 @@ class TreeNode:
         self.value = map_to_value(node)
         self.value_type = value_type(node)
         self.expr = expr(node)
-        if self.value_type == "non_term":
+        if not is_term_node(self):
             for child in ast.iter_child_nodes(node):
                 self.children.append(TreeNode(child, self))
+
+            
 def path_context(start_node, end_node):
     p = path(start_node, end_node, None, 0)
     return (start_node.value, p, end_node.value)
@@ -94,7 +102,7 @@ def len_tree(tree_node):
 
 def term_nodes(tree):
     result = []
-    if tree.value_type != "non_term":
+    if is_term_node(tree):
         result.append(tree) 
     for child in tree.children:
         result.extend(term_nodes(child))
@@ -103,7 +111,7 @@ def term_nodes(tree):
 
 def non_term_nodes(tree):
     result = []
-    if tree.value_type != "non_term":
+    if is_term_node(tree):
         return result
     else:
         result.append(tree)
@@ -131,6 +139,3 @@ def map_to_values(nodes):
     return [map_to_value(node) for node in nodes]
 
 snippet = CodeSnippet("../hello.py")
-
-p = path_context(snippet.T[2], snippet.T[0])
-print(p)
