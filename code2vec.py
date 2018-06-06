@@ -16,11 +16,14 @@ class TreeNode:
         self.children = []
         self.value = map_to_value(node)
         self.value_type = value_type(node)
+        self.expr = expr(node)
         if self.value_type == "non_term":
             for child in ast.iter_child_nodes(node):
                 self.children.append(TreeNode(child, self))
-def path_context(p):
-    return (p[0].value, p, p[-1].value)
+def path_context(start_node, end_node):
+    p = path(start_node, end_node, None, 0)
+    return (start_node.value, p, end_node.value)
+    
 
 def path_down(start_node, end_node, num_direction_changes):
     for child in start_node.children:
@@ -28,18 +31,18 @@ def path_down(start_node, end_node, num_direction_changes):
             p = path(child, end_node, "down", num_direction_changes)
             if p != None:
                 p.insert(0, "__down__")
-                p.insert(0, start_node.value)
+                p.insert(0, start_node.expr)
                 return p
 def path_up(start_node, end_node, num_direction_changes):
     p = path(start_node.parent, end_node, "up", num_direction_changes)
     if p != None:
         p.insert(0, "__up__")
-        p.insert(0, start_node.value)
+        p.insert(0, start_node.expr)
         return p
     
 def path(start_node, end_node, arrow, num_direction_changes):
     if start_node == end_node:
-        return [end_node.value]
+        return [end_node.expr]
     parent = None
     if start_node.parent != None:
         parent = start_node.parent
@@ -111,6 +114,10 @@ def non_term_nodes(tree):
 def values(tree):
     nodes = term_nodes(tree)
     return map_to_values(nodes)
+
+def expr(node):
+    return str(type(node)).replace("<class '_ast.", "").replace("'>", "")
+
 def map_to_value(node):
     if hasattr(node, "n"):
         return node.n
@@ -125,6 +132,5 @@ def map_to_values(nodes):
 
 snippet = CodeSnippet("../hello.py")
 
-p = path(snippet.T[2], snippet.T[0], None, 0)
-for _p in p:
-    print(_p)
+p = path_context(snippet.T[2], snippet.T[0])
+print(p)
