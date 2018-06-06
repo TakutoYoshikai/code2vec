@@ -19,51 +19,51 @@ class TreeNode:
         if self.value_type == "non_term":
             for child in ast.iter_child_nodes(node):
                 self.children.append(TreeNode(child, self))
+def path_context(p):
+    return (p[0].value, p, p[-1].value)
 
+def path_down(start_node, end_node, num_direction_changes):
+    for child in start_node.children:
+        if child != start_node:
+            p = path(child, end_node, "down", num_direction_changes)
+            if p != None:
+                p.insert(0, "__down__")
+                p.insert(0, start_node.value)
+                return p
+def path_up(start_node, end_node, num_direction_changes):
+    p = path(start_node.parent, end_node, "up", num_direction_changes)
+    if p != None:
+        p.insert(0, "__up__")
+        p.insert(0, start_node.value)
+        return p
+    
 def path(start_node, end_node, arrow, num_direction_changes):
     if start_node == end_node:
-        return [end_node]
+        return [end_node.value]
     parent = None
     if start_node.parent != None:
         parent = start_node.parent
     if arrow == "up":
         if num_direction_changes == 0:
-            for child in start_node.children:
-                if child != start_node:
-                    p = path(child, end_node, "down", num_direction_changes + 1)
-                    if p != None:
-                        p.insert(0, start_node)
-                        return p
-        if parent != None:
-            p = path(parent, end_node, "up", num_direction_changes)
+            p = path_down(start_node, end_node, num_direction_changes + 1)
             if p != None:
-                p.insert(0, start_node)
+                return p
+        if parent != None:
+            p = path_up(start_node, end_node, num_direction_changes)
+            if p != None:
                 return p
     if arrow == "down":
-        if num_direction_changes == 0:
-            if parent != None:
-                p = path(parent, end_node, "up", num_direction_changes)
-                if p != None:
-                    p.insert(0, start_node)
-                    return p
-        for child in start_node.children:
-            if child != start_node:
-                p = path(child, end_node, "down", num_direction_changes + 1)
-                if p != None:
-                    p.insert(0, start_node)
-                    return p
+        p = path_down(start_node, end_node, num_direction_changes)
+        if p != None:
+            return p
     else:
         if parent != None:
-            p = path(parent, end_node, "up", num_direction_changes)
+            p = path_up(start_node, end_node, num_direction_changes)
             if p != None:
-                p.insert(0, start_node)
                 return p
-        for child in start_node.children:
-            if child != start_node:
-                p = path(child, end_node, "down", num_direction_changes + 1)
-                if p != None:
-                    p.insert(0, start_node)
-                    return p
+        p = path_down(start_node, end_node, num_direction_changes)
+        if p != None:
+            return p
     return None
 
 
@@ -125,6 +125,6 @@ def map_to_values(nodes):
 
 snippet = CodeSnippet("../hello.py")
 
-p = path(snippet.T[7], snippet.T[0], None, 0)
+p = path(snippet.T[2], snippet.T[0], None, 0)
 for _p in p:
-    print(_p.value)
+    print(_p)
