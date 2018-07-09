@@ -181,6 +181,8 @@ class BagOfPathPathContext:
         self.word_vocab, self.words = self.create_word_vocab()
         self.path_vocab = self.create_path_vocab()
         self.tags_vocab = self.create_tags_vocab()
+        print("tagsvocab")
+        print(self.tags_vocab)
     def create_value_vocab(self):
         X = []
         for snippet in self.snippets:
@@ -214,42 +216,46 @@ class BagOfPathPathContext:
                 result.append(p_context)
         return result
     def embedding(self, p_context):
-        index_start = self.words.index(p_context[0])
-        index_end = self.words.index(p_context[2])
-        for i, path in enumerate(self.all_paths):
-            if path == p_context[1]:
-                return [self.word_vocab[index_start], self.path_vocab[i], self.word_vocab[index_end]];
-        return None
+        index_start = self.values.index(p_context[0])
+        index_end = self.values.index(p_context[2])
+        index_path = self.all_paths.index(p_context[1])
+        result =  np.array([[v] for v in np.hstack((self.value_vocab[index_start], self.path_vocab[index_path], self.value_vocab[index_end]))], dtype=np.float64)
+        print(result)
+        return result
 
 
 def attention_weight(c_tilde, a):
-    denominator = sum([tf.reduce_sum([tf.exp(tf.matmul(c_tilde[j], a, transpose_a=True))]) for j in c_tilde.shape[0]])
-    return [tf.exp(c_tilde[i], a, transpose_a=True) / denominator for i in range(c_tilde.shape[0])]
+    a = tf.reshape(a, (3, 1))
+    denominator = tf.reduce_sum([tf.exp(tf.matmul(c_tilde[j], a, transpose_a=True)) for j in range(len(c_tilde))])
+    return [tf.exp(tf.matmul(c_tilde[i], a, transpose_a=True)) / denominator for i in range(len(c_tilde))]
 
 def code_vector(c_tilde, alpha):
-    return tf.reduce_sum([tf.matmul(alpha[i], c_tilde[i]) for i in range(alpha.shape[0])])
+    return tf.reduce_sum([tf.matmul(alpha[i], c_tilde[i]) for i in range(len(alpha))])
 
-def model_q(Y, v, tags_vocab):
+def model_q(v, tags_vocab):
     result = []
-    denominator = tf.reduce_sum([tf.exp(tf.matmul(v, tags_vocab[j], transpose_a=True)) for j in range(tags_vocab.shape[0])])
-    for i in range(tags_vocab.shape[0]):
-        numerator = tf.exp(tf.matmul(v, tags_vocab.shape[0], transpose_a=True))
+    denominator = tf.reduce_sum([tf.exp(tf.matmul(v, tags_vocab[j], transpose_a=True)) for j in range(len(tags_vocab))])
+    for i in range(len(tags_vocab)):
+        numerator = tf.exp(tf.matmul(v, len(tags_vocab), transpose_a=True))
         result.append(numerator / denominator)
     return result
 
 
 d = 3
+hello_snippet = CodeSnippet("../hello.py")
+linear_snippet = CodeSnippet("../linear.py")
+lstm_snippet = CodeSnippet("../lstm.py")
 
-snippets = [CodeSnippet("../hello.py"), CodeSnippet("../linear.py"), CodeSnippet("../lstm.py")]
-Y = ["indexof", "getParameter"]
+snippets = [hello_snippet, linear_snippet, lstm_snippet]
+tags = ["indexof", "getParameter"]
 
-Bag = BagOfPathPathContext(snippets, Y, d)
-c = [Bag.embedding(p_context) for p_context in Bag.all_path_contexts]
-W = tf.Variable(tf.random_uniform([d, 3 * d]), name="W")
-c_tilde = [tf.tanh(tf.matmul(W, c[i])) for i in range(len(c))]
-a = tf.Variable(tf.random_uniform([d]), name="alpha")
+Bag = BagOfPathPathContext(snippets, tags, d)
+X = tf.placeholder(tf.float64, [None, 6])
+Y = tf.placeholder(tf.int32, [None, 2])
+c = [Bag.embedding(p_context) for p_context in hello_snippet.rep]
+W = tf.Variable(tf.random_uniform([d, 3 * d], dtype=tf.float64), name="W", dtype=tf.float64)
+c_tilde = [tf.tanh(tf.matmul(W, c_i)) for c_i in c]
+a = tf.Variable(tf.random_uniform([d], dtype=tf.float64), name="alpha", dtype=tf.float64)
 alpha = attention_weight(c_tilde, a)
 v = code_vector(alpha, c_tilde)
-q = model_q(Y, v, Bag.tags_vocab)
-    
-print(embedding(path_context(snippets[0].T[0], snippets[0].T[1])))
+q = model_q(v, Bag.tags_vocab)
