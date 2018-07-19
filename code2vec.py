@@ -222,6 +222,8 @@ class BagOfPathPathContext:
         result =  np.array([[v] for v in np.hstack((self.value_vocab[index_start], self.path_vocab[index_path], self.value_vocab[index_end]))], dtype=np.float64)
         print(result)
         return result
+    def create_c(self, snippet):
+        return [self.embedding(p_context) for p_context in snippet.rep]
 
 
 def attention_weight(c_tilde, a):
@@ -240,22 +242,27 @@ def model_q(v, tags_vocab):
         result.append(numerator / denominator)
     return result
 
-
+    
 d = 3
 hello_snippet = CodeSnippet("../hello.py")
 linear_snippet = CodeSnippet("../linear.py")
 lstm_snippet = CodeSnippet("../lstm.py")
 
 snippets = [hello_snippet, linear_snippet, lstm_snippet]
+labels = [[1, 0], [0, 1], [0, 1]]
 tags = ["indexof", "getParameter"]
 
 Bag = BagOfPathPathContext(snippets, tags, d)
-X = tf.placeholder(tf.float64, [None, 6])
-Y = tf.placeholder(tf.int32, [None, 2])
-c = [Bag.embedding(p_context) for p_context in hello_snippet.rep]
+
+c = Bag.create_c(snippets[0])
+X = tf.placeholder(tf.float64, [None, 3 * d])
+Y = tf.placeholder(tf.float64, [2])
 W = tf.Variable(tf.random_uniform([d, 3 * d], dtype=tf.float64), name="W", dtype=tf.float64)
-c_tilde = [tf.tanh(tf.matmul(W, c_i)) for c_i in c]
-a = tf.Variable(tf.random_uniform([d], dtype=tf.float64), name="alpha", dtype=tf.float64)
+c_tilde = tf.map_fn(lambda c_i: tf.tanh(tf.matmul(W, c_i)), X)
+a = tf.Variable(tf.random_uniform([d], dtype=tf.float64), name="a", dtype=tf.float64)
 alpha = attention_weight(c_tilde, a)
 v = code_vector(alpha, c_tilde)
 q = model_q(v, Bag.tags_vocab)
+
+
+        
