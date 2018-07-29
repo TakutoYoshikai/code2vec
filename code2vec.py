@@ -228,11 +228,11 @@ class BagOfPathPathContext:
 
 def attention_weight(c_tilde, a):
     a = tf.reshape(a, (3, 1))
-    denominator = tf.reduce_sum([tf.exp(tf.matmul(c_tilde[j], a, transpose_a=True)) for j in range(len(c_tilde))])
-    return [tf.exp(tf.matmul(c_tilde[i], a, transpose_a=True)) / denominator for i in range(len(c_tilde))]
+    denominator = tf.reduce_sum(tf.map_fn(lambda c_tilde_j: tf.exp(tf.matmul(c_tilde_j, a, transpose_a=True)), c_tilde))
+    return tf.map_fn(lambda c_tilde_i: tf.exp(tf.matmul(c_tilde_i, a, transpose_a=True)) / denominator, c_tilde)
 
 def code_vector(c_tilde, alpha):
-    return tf.reduce_sum([tf.matmul(alpha[i], c_tilde[i]) for i in range(len(alpha))])
+    return tf.reduce_sum(tf.map_fn(lambda ele: ele[0] * ele[1], (alpha, c_tilde)))
 
 def model_q(v, tags_vocab):
     result = []
@@ -258,11 +258,9 @@ c = Bag.create_c(snippets[0])
 X = tf.placeholder(tf.float64, [None, 3 * d])
 Y = tf.placeholder(tf.float64, [2])
 W = tf.Variable(tf.random_uniform([d, 3 * d], dtype=tf.float64), name="W", dtype=tf.float64)
-c_tilde = tf.map_fn(lambda c_i: tf.tanh(tf.matmul(W, c_i)), X)
+c_tilde = tf.map_fn(lambda c_i: tf.tanh(tf.matmul(W, tf.reshape(c_i, [3 * d, 1]))), X)
 a = tf.Variable(tf.random_uniform([d], dtype=tf.float64), name="a", dtype=tf.float64)
 alpha = attention_weight(c_tilde, a)
+print(alpha)
 v = code_vector(alpha, c_tilde)
 q = model_q(v, Bag.tags_vocab)
-
-
-        
